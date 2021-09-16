@@ -20,92 +20,165 @@ app.use(function(req, res, next) {
 });
 
 
-// query ?word=1&sentence=5&paragraph=4
-app.get('/v1/sentence/', (req, res) => {
-    logger.info("GET /v1/sentence");
-    const {word, sentence, paragraph} = req.query;
-	console.log(req.query);
-    // TODO handle error if querystring are sent
+// GET /v1/word_translation/
+// query ?word=1,chapter=2
+app.get('/v1/word_translation/', (req, res) => {
+    logger.info("GET /v1/word_translation/");
+
+    const {word, chapter} = req.query;
+    
     pool.connect((err, client, release) => {
-	if(err) {
-	    return logger.error('Error acquiring client', err.stack);
-	}
-	let sql = `
-SELECT translation FROM sentence_translation 
-WHERE sentence_translation_id = 
-(SELECT sentence_translation_id FROM word WHERE word_number=$1 AND sentence_number=$2 AND paragraph_number=$3);
-`;
+  	let sql= `
+SELECT translation FROM word_translation
+Where word_translation_id= (SELECT word_translation_id FROM word WHERE chapter_id = $2 AND word_number = $1);
+             `;
 
-	client.query(sql,[word, sentence, paragraph], (err, result) =>{
-	    release()
+	client.query(sql,[word, chapter], (err, result) =>{
+  	    release()
+
 	    if(err) {
-		return logger.error('Error executing query', err.stack)
-	    }
-	    logger.info("Successful connection to database")
-	    const sentence = result.rows[0];
-	    if (sentence){
-		res.json(sentence);
-	    } else {
-		res.end();
-	    }
-	});
-	})
-});
+		console.log(err)
+  		return logger.error('Error executing query', err.stack)
+  	    }
 
+  	    logger.info("Successful connection to database");
+  	    const data = result.rows;
 
-
-// query ?word=1&sentence=5&paragraph=4
-app.get('/v1/token/', (req, res) => {
-    logger.info("GET /v1/token");
-    const {word, sentence, paragraph} = req.query;
-	console.log(req.query);
-    // TODO handle error if querystring are sent
-    pool.connect((err, client, release) => {
-	if(err) {
-	    return logger.error('Error acquiring client', err.stack);
-	}
-	let sql = `
-SELECT translation, word_number, sentence_number, paragraph_number FROM token_translation t 
-INNER JOIN word w ON w.token_translation_id = t.token_translation_id 
-WHERE t.token_translation_id = 
-(SELECT token_translation_id FROM word WHERE word_number=$1 AND sentence_number=$2 AND paragraph_number=$3);
-`;
-
-	client.query(sql,[word, sentence, paragraph], (err, result) =>{
-	    release()
-	    if(err) {
-		return logger.error('Error executing query', err.stack)
-	    }
-
-	    logger.info("Successful connection to database");
-	    const data = result.rows;
 	    if (data && data[0] && data[0].translation){
-		const translation = data[0].translation;
-		const words = data.map((r) => {
-		    return {
-			wordNumber: r.word_number,
-			sentenceNumber: r.sentence_number,
-			paragraphNumber: r.paragraph_number,
-		    }
-		})
-		res.json({
-		    translation: translation,
-		    words:words
-		});
-	    } else {
-		res.end();
-	    }
-	});
-	})
-});
+  		const translation = data[0].translation;
 
-app.get('/v1/text', (req, res) => {
-    logger.info("GET /v1/text");
-    res.json(chapterData);
-});
+		res.json(
+		    {
+			word_translation: translation,
+		  }
+		)
+	    }
+
+	    res.end();
+	});
+})});
+
+// get?word=1,chapter=2
+app.get('/v1/sentence_translation/', (req, res) => {
+    logger.info("GET /v1/word_translation/");
+
+    const {word, chapter} = req.query;
+    
+    pool.connect((err, client, release) => {
+  	let sql= `
+SELECT translation FROM sentence_translation
+Where sentence_translation_id= (SELECT sentence_translation_id FROM word WHERE chapter_id = $2 AND word_number = $1);
+             `;
+
+	client.query(sql,[word, chapter], (err, result) =>{
+  	    release()
+
+	    if(err) {
+  		return logger.error('Error executing query', err.stack)
+  	    }
+
+  	    logger.info("Successful connection to database");
+  	    const data = result.rows;
+
+	    if (data && data[0] && data[0].translation){
+  		const translation = data[0].translation;
+
+		res.json(
+		    {
+			sentence_translation: translation,
+		  }
+		)
+	    }
+
+	    res.end();
+	});
+})});
+
+// get?chapter=1
+app.get('/v1/chapter_info/', (req, res) => {
+    logger.info("GET /v1/chapter_info/");
+
+    const {chapter} = req.query;
+    
+    pool.connect((err, client, release) => {
+  	let sql= `
+SELECT chapter_number, location, chapter_name, subtitle_location, audio_location  FROM chapter
+WHERE chapter_id = $1;
+             `;
+
+	client.query(sql,[chapter], (err, result) =>{
+  	    release()
+
+	    if(err) {
+  		return logger.error('Error executing query', err.stack)
+  	    }
+
+  	    logger.info("Successful connection to database");
+  	    const data = result.rows;
+
+	    if (data && data[0]){
+  		const chapter_number = data[0].chapter_number;
+  		const location = data[0].location;
+  		const chapter_name = data[0].chapter_name;
+  		const subtitle_location = data[0].subtitle_location;
+  		const audio_location = data[0].audio_location;
+
+		res.json(
+		    {
+			chapter_number: chapter_number,
+			location: location,
+			chapter_name: chapter_name,
+			subtitle_location: subtitle_location,
+			audio_location: audio_location
+		  }
+		)
+	    }
+
+	    res.end();
+	});
+})});
+
+// get?title=1
+app.get('/v1/title_info/', (req, res) => {
+    logger.info("GET /v1/title_info/");
+
+    const {title} = req.query;
+    
+    pool.connect((err, client, release) => {
+  	let sql= `
+SELECT title_name FROM title
+WHERE title_id = $1;
+             `;
+
+	client.query(sql,[title], (err, result) =>{
+  	    release()
+
+	    if(err) {
+  		return logger.error('Error executing query', err.stack)
+  	    }
+
+  	    logger.info("Successful connection to database");
+  	    const data = result.rows;
+
+	    if (data && data[0]){
+  		const title_name = data[0].title_name;
+
+		res.json(
+		    {
+			title_name: title_name,
+		  }
+		)
+	    }
+
+	    res.end();
+	});
+})});
+
+
 
 // 404 must be after other handlers
 app.use(function (req, res, next) {
+    console.log("yeah");
     res.sendStatus(404);
 })
 
